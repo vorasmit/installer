@@ -1,14 +1,50 @@
 #!/usr/bin/env python
 
-import shutil
+"""
+This file will be executed on the server after the server is created.
+
+Requirements:
+=============
+1. Python 3.6 or above
+2. Git
+3. Tested on Ubuntu 22.04
+
+Steps for Running This Script:
+==============================
+1. Create a new user on the server (make sure its same as the username in config.json)
+2. Add the user to sudoers
+3. Login as the new user
+4. Install git
+5. Clone this repo
+6. Go to the repo directory
+7. Run this script after updating the config.json file
+
+```sh
+sudo adduser <username>
+sudo usermod -aG sudo <username>
+su - <username>
+
+sudo apt-get install git -y
+git clone <repo_url>
+
+cd <repo_name>
+python3 server_script.py
+```
+
+"""
+
 import os
 import json
-import pwd
 
 
 def print_step(step):
     print("")
     print("\033[92m" + step + "\033[0m")
+
+
+def update_and_upgrade_apt():
+    print_step("Updating and upgrading apt packages")
+    os.system("sudo apt-get update && sudo apt-get upgrade -y")
 
 
 def read_server_script_json():
@@ -20,7 +56,6 @@ def update_config(config, file):
     """
     This function will update the config to the end of the file if it doesn't exist
     """
-
     with open(file, "r") as f:
         for line in f:
             if line.startswith(config):
@@ -131,16 +166,15 @@ def install_python(version):
 
 def install_mariadb(version):
     print_step("Installing mariadb " + version)
-
+    os.system("wget https://downloads.mariadb.com/MariaDB/mariadb_repo_setup")
+    os.system("chmod +x mariadb_repo_setup")
+    os.system(f"sudo ./mariadb_repo_setup --mariadb-server-version='{version}'")
     os.system(
-        "wget -O - https://downloads.mariadb.com/MariaDB/mariadb_repo_setup | sudo bash"
+        f"sudo apt-get install mariadb-server-{version} mariadb-client-{version} libmysqlclient-dev -y"
     )
-    os.system(
-        f"sudo apt-get install mariadb-server={version} mariadb-client={version} libmysqlclient-dev -y"
-    )
+    os.system("rm mariadb_repo_setup")
 
     mysql_secure_installation()
-    # TODO: update mariadb config
     update_mariadb_config()
 
 
@@ -156,13 +190,29 @@ def update_mariadb_config():
     """
     print_step("Updating mariadb config")
 
-    # create config file
-    os.system("sudo mkdir -p /etc/mysql/mariadb.conf.d")
-    os.system("sudo touch /etc/mysql/mariadb.conf.d/erpnext.cnf")
+    # move erpnext.cnf file
+    dir = "/etc/mysql/mariadb.conf.d"
+    filename = "erpnext.cnf"
+    os.system(f"sudo mkdir -p {dir}")
+    os.system(f"sudo cp erpnext.cnf {os.path.join(dir, filename)}")
 
-    # update config file
+    # update override.conf
+    dir = "/etc/systemd/system/mariadb.service.d"
+    filename = "override.conf"
+    file_path = os.path.join(dir, filename)
 
-    pass
+    os.system(f"sudo mkdir -p {dir}")
+    if not os.path.exists(file_path):
+        os.system(f"sudo touch {file_path}")
+
+    update_config("[Service]", file_path)
+    update_config("LimitNOFILE=infinity", file_path)
+    update_config("LimitCORE=infinity", file_path)
+
+    os.system("sudo systemctl daemon-reload")
+
+    # restart mariadb
+    os.system("sudo systemctl restart mariadb")
 
 
 def install_nodejs(version):
@@ -170,9 +220,13 @@ def install_nodejs(version):
 
     os.system("sudo apt-get install curl -y")
     os.system(
-        "curl -sL https://deb.nodesource.com/setup_" + version + ".x | sudo -E bash -"
+        "curl -sL https://deb.nodesource.com/setup_"
+        + version
+        + " -o nodesource_setup.sh"
     )
+    os.system("sudo bash nodesource_setup.sh")
     os.system("sudo apt-get install nodejs -y")
+    os.system("rm nodesource_setup.sh")
 
 
 def install_wkhtmltopdf(info):
@@ -192,7 +246,7 @@ def install_wkhtmltopdf(info):
 def install_other_dependencies():
     # yarn
     print_step("Installing yarn")
-    os.system("npm install -g yarn")
+    os.system("sudo npm install -g yarn")
 
     # redis-server
     print_step("Installing redis-server")
@@ -203,21 +257,85 @@ def install_other_dependencies():
     os.system("sudo apt-get install git -y")
 
 
+#######################################################################
+# Install frappe-bench ################################################
+#######################################################################
+
+
+def install_frappe_bench():
+    print_step("Installing latest frappe-bench")
+    os.system("sudo pip3 install frappe-bench")
+    os.system("bench --version")
+
+
+def intialize_frappe_bench(version, apps, bench_name):
+    print_step("Initializing frappe-bench")
+    # install frappe with python version and branch
+
+    for app in apps:
+        if app == "frappe":
+            branch = apps[app]["branch"]
+
+            os.system(
+                f"bench init --frappe-branch {branch} --python {version} {bench_name}"
+            )
+            os.system(f"cd {bench_name}")
+
+    get_apps(apps)
+
+
+def get_apps(apps):
+    print_step("Getting apps")
+
+    for app in apps:
+        if app != "frappe":
+            os.system(
+                f"bench get-app --branch {apps[app]['branch']} {apps[app]['url']}"
+            )
+
+
+def setup_site(site_name, mariadb_root_password, admin_password, apps, dns_multitenant):
+    print_step(f"Setting up site {site_name}")
+
+    os.system(
+        f"bench new-site {site_name} --mariadb-root-password {mariadb_root_password} --admin-password {admin_password}"
+    )
+    for app in apps:
+        if app != "frappe":
+            os.system(f"bench --site {site_name} install-app {app}")
+
+    os.system(f"bench set-config dns_multitenant {dns_multitenant}")
+
+
 ######################################################################
 
 
 if __name__ == "__main__":
-    server_script = read_server_script_json()
-    username = server_script["username"]
+    config = read_server_script_json()
+    username = config["username"]
 
-    add_authorized_keys(username, server_script["authorized_keys"])
-    update_ssh_config(server_script.get("ssh_port"))
+    update_and_upgrade_apt()
+    add_authorized_keys(username, config["authorized_keys"])
+    update_ssh_config(config.get("ssh_port"))
     update_sysctl_config()
     # set_io_scheduler_to_none()
 
     # TODO: work on this
     # create_swap_partition()
 
-    install_dependencies(server_script["dependencies"])
+    install_dependencies(config["dependencies"])
+
+    # init frappe-bench
+    install_frappe_bench()
+    intialize_frappe_bench(
+        config["dependencies"]["python"], config["apps"], config["bench_name"]
+    )
+    setup_site(
+        config["site_name"],
+        config["mariadb_root_password"],
+        config["admin_password"],
+        config["apps"],
+        config["dns_multitenant"],
+    )
 
     os.system("exit")
