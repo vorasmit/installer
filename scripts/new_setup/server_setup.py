@@ -27,7 +27,6 @@ su - frappe
 
 sudo apt-get update && sudo apt-get install git -y
 git clone https://github.com/vorasmit/installer.git
-
 cd installer/scripts/new_setup
 python3 server_script.py
 ```
@@ -269,11 +268,11 @@ def install_frappe_bench():
     os.system("bench --version")
 
 
-def intialize_frappe_bench(version, apps, bench_name):
+def intialize_frappe_bench(username, version, apps, bench_name):
     print_step("Initializing frappe-bench")
     # install frappe with python version and branch
 
-    os.system("cd ~")
+    os.chdir(f"/home/{username}")
     for app in apps:
         if app == "frappe":
             branch = apps[app]["branch"]
@@ -282,7 +281,7 @@ def intialize_frappe_bench(version, apps, bench_name):
     os.system(
         f"bench init --frappe-branch {branch} --python python{version} {bench_name}"
     )
-    os.system(f"cd ~/{bench_name}")
+    os.chdir(f"/home/{username}/{bench_name}")
     get_apps(apps)
 
 
@@ -330,7 +329,7 @@ if __name__ == "__main__":
     # init frappe-bench
     install_frappe_bench()
     intialize_frappe_bench(
-        config["dependencies"]["python"], config["apps"], config["bench_name"]
+        username, config["dependencies"]["python"], config["apps"], config["bench_name"]
     )
     setup_site(
         config["site_name"],
