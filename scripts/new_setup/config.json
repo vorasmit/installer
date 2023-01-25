@@ -1,10 +1,11 @@
 {
     "username": "frappe",
-    "authorized_keys": {
-        "smit": "ssh_key",
-        "lakshit": "lakshit_keys"
-    },
-    "ssh_port": 33,
+    "bench_name": "frappe-bench",
+    "site_name": "erp.erpnext.com",
+    "admin_password": "admin",
+    "mariadb_root_password": "root",
+    "dns_multitenant": "on",
+    "ssh_port": 22,
     "dependencies": {
         "python": "3.11",
         "mariadb": "10.6",
@@ -14,5 +15,23 @@
             "filename": "wkhtmltox_0.12.6.1-2.jammy_amd64.deb",
             "reference_url": "https://wkhtmltopdf.org/downloads.html"
         }
+    },
+    "apps": {
+        "frappe": {
+            "branch": "version-14",
+            "url": "https://github.com/frappe/frappe.git"
+        },
+        "payments": {
+            "branch": "develop",
+            "url": "https://github.com/frappe/payments.git"
+        },
+        "erpnext": {
+            "branch": "version-14",
+            "url": "https://github.com/frappe/erpnext.git"
+        }
+    },
+    "authorized_keys": {
+        "smit": "ssh_key",
+        "lakshit": "lakshit_keys"
     }
 }

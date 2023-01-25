@@ -19,15 +19,16 @@ Steps for Running This Script:
 6. Go to the repo directory
 7. Run this script after updating the config.json file
 
+eg for a new user named `frappe`
 ```sh
-sudo adduser <username>
-sudo usermod -aG sudo <username>
-su - <username>
+sudo adduser frappe
+sudo usermod -aG sudo frappe
+su - frappe
 
-sudo apt-get install git -y
-git clone <repo_url>
+sudo apt-get update && sudo apt-get install git -y
+git clone https://github.com/vorasmit/installer.git
 
-cd <repo_name>
+cd installer/scripts/new_setup
 python3 server_script.py
 ```
 
@@ -272,15 +273,16 @@ def intialize_frappe_bench(version, apps, bench_name):
     print_step("Initializing frappe-bench")
     # install frappe with python version and branch
 
+    os.system("cd ~")
     for app in apps:
         if app == "frappe":
             branch = apps[app]["branch"]
+            break
 
-            os.system(
-                f"bench init --frappe-branch {branch} --python {version} {bench_name}"
-            )
-            os.system(f"cd {bench_name}")
-
+    os.system(
+        f"bench init --frappe-branch {branch} --python python{version} {bench_name}"
+    )
+    os.system(f"cd ~/{bench_name}")
     get_apps(apps)
 
 
