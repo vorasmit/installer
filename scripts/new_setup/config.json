@@ -1,0 +1,18 @@
+{
+    "username": "frappe",
+    "authorized_keys": {
+        "smit": "ssh_key",
+        "lakshit": "lakshit_keys"
+    },
+    "ssh_port": 33,
+    "dependencies": {
+        "python": "3.11",
+        "mariadb": "10.6",
+        "node": "16.x",
+        "wkhtmltopdf": {
+            "version": "0.12.6.1-2",
+            "filename": "wkhtmltox_0.12.6.1-2.jammy_amd64.deb",
+            "reference_url": "https://wkhtmltopdf.org/downloads.html"
+        }
+    }
+}
