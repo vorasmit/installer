@@ -92,7 +92,9 @@ def set_io_scheduler_to_none(device_name=None):
     if not device_name:
         # show all devices
         all_devices = os.listdir("/sys/block")
-        print(all_devices)
+        print_step("Available devices")
+        print(all_devices, end="\n\n")
+
         while True:
             device_name = input("Enter device name (e.g. sda): ")
             if device_name in all_devices:
@@ -130,6 +132,7 @@ def create_swap_partition(swap_size=None):
 
 
 def install_dependencies(dependencies):
+    print_step("Installing dependencies")
     install_python(dependencies["python"])
     install_mariadb(dependencies["mariadb"])
     install_nodejs(dependencies["node"])
@@ -429,7 +432,8 @@ def calculate_innodb_buffer_pool_size():
     # calculate innodb buffer pool size
     print_step("Calculating innodb buffer pool size")
     free_memory = os.popen("free -m | awk '/^Mem:/{print $4}'").read()
-    innodb_buffer_pool_size = int(free_memory * 0.6)
+    innodb_buffer_pool_size = int(int(free_memory) * 0.6)
+    print(f"innodb_buffer_pool_size: {innodb_buffer_pool_size}M")
     # convert value to whole number
     return innodb_buffer_pool_size
 
@@ -459,7 +463,7 @@ def update_system_for_mariadb():
 
 def install_bench():
     print_step("Installing bench")
-    install_dependencies()
+    install_dependencies(config["dependencies"])
     install_frappe_bench()
 
 
