@@ -135,16 +135,27 @@ def set_io_scheduler_to_none(device_name=None):
     os.system(f"echo none | sudo tee /sys/block/{device_name}/queue/scheduler")
 
 
-# def create_swap_partition():
-#     # check existing swap
-#     if os.system('swapon -s') == 0:
-#         return
-
-#     # create swap partition
-#     os.system('sudo fallocate -l 4G /swapfile')
-#     os.system('sudo chmod 600 /swapfile')
-#     os.system('sudo mkswap /swapfile')
-#     os.system('sudo swapon /swapfile')
+def create_swap_partition(swap_size=None):
+    """
+    Create swap partition
+    Reference: https://www.digitalocean.com/community/tutorials/how-to-add-swap-space-on-ubuntu-22-04
+    Appropriate swap size: https://help.ubuntu.com/community/SwapFaq#How_much_swap_do_I_need.3F
+    """
+    print_step("Creating swap partition")
+    if not swap_size or not swap_size.isdigit():
+        # show device size
+        os.system("free -h")
+        while True:
+            swap_size = input("Enter swap size (e.g. 1): ")
+            if swap_size.isdigit():
+                break
+            print("Invalid swap size. Please try again.")
+    os.system(f"sudo fallocate -l {swap_size}G /swapfile")
+    os.system("sudo chmod 600 /swapfile")
+    os.system("sudo mkswap /swapfile")
+    os.system("sudo swapon /swapfile")
+    os.system("sudo cp /etc/fstab /etc/fstab.bak")
+    os.system("echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab")
 
 
 ######################################################################
@@ -325,10 +336,9 @@ if __name__ == "__main__":
     add_authorized_keys(username, config["authorized_keys"])
     update_ssh_config(config.get("ssh_port"))
     update_sysctl_config()
-    # set_io_scheduler_to_none()
 
-    # TODO: work on this
-    # create_swap_partition()
+    set_io_scheduler_to_none()
+    create_swap_partition(config["swap_size"])
 
     install_dependencies(config["dependencies"])
 
