@@ -327,9 +327,8 @@ def setup_site(site_name, mariadb_root_password, admin_password, apps, dns_multi
 #######################################################################
 
 
-def setup_production(username, bench_name):
+def setup_production(username):
     print_step("Setting up production")
-    os.chdir(f"/home/{username}/{bench_name}")
     os.system(f"sudo bench setup production --yes {username}")
     supervisorctl_permissions(username)
     os.system("sudo systemctl restart supervisor")
@@ -361,7 +360,7 @@ def generate_ssl_certificate(site_name, ssl_email):
     )
 
 
-def add_ssl_to_site(site_name, username, bench_name):
+def add_ssl_to_site(site_name):
     print_step("Adding SSL to site")
     if not os.path.exists("/etc/letsencrypt/live/"):
         print("SSL certificate not found")
@@ -369,7 +368,6 @@ def add_ssl_to_site(site_name, username, bench_name):
     fullchain = f"/etc/letsencrypt/live/{site_name}/fullchain.pem"
     privkey = f"/etc/letsencrypt/live/{site_name}/privkey.pem"
 
-    os.chdir(f"/home/{username}/{bench_name}")
     os.system(f"bench set-config ssl_certificate {fullchain}")
     os.system(f"bench set-config ssl_certificate_key {privkey}")
     os.system(f"sudo systemctl restart nginx")
@@ -471,33 +469,49 @@ def calculate_innodb_buffer_pool_size():
 
 
 ######################################################################
+# Tasks###############################################################
+######################################################################
 
 
-if __name__ == "__main__":
-    config = read_server_script_json()
-    username = config["username"]
-
+def update_server_config(username, keys, ssh_keys):
+    print_step("Updating server config")
     update_and_upgrade_apt()
-    add_authorized_keys(username, config["authorized_keys"])
-    update_ssh_config(config.get("ssh_port"))
+    add_authorized_keys(username, keys)
+    update_ssh_config(ssh_keys)
+
+
+def update_system_for_mariadb(swap_size):
+    print_step("Updating system for mariadb")
     update_sysctl_config()
-
     set_io_scheduler_to_none()
-    create_swap_partition(config["swap_size"])
+    create_swap_partition(swap_size)
 
-    install_dependencies(config["dependencies"])
 
-    # init frappe-bench
+def install_bench(dependencies):
+    print_step("Installing bench")
+    install_dependencies(dependencies)
     install_frappe_bench()
-    intialize_frappe_bench(
-        username, config["dependencies"]["python"], config["apps"], config["bench_name"]
-    )
-    setup_site(
-        config["site_name"],
-        config["mariadb_root_password"],
-        config["admin_password"],
-        config["apps"],
-        config["dns_multitenant"],
-    )
 
-    os.system("exit")
+
+def intialize_bench_with_apps(username, version, apps, bench_name):
+    print_step("Intializing bench with apps")
+    intialize_frappe_bench(username, version, apps, bench_name)
+
+
+def create_site_with_app(
+    site_name,
+    mariadb_root_password,
+    admin_password,
+    apps,
+    dns_multitenant,
+    username,
+    bench_name,
+):
+    print_step("Creating site with app")
+    os.chdir(f"/home/{username}/{bench_name}")
+    setup_site(site_name, mariadb_root_password, admin_password, apps, dns_multitenant)
+
+
+def setup_production_server(username, bench_name):
+    os.chdir(f"/home/{username}/{bench_name}")
+    setup_production(username)
