@@ -432,7 +432,7 @@ def calculate_innodb_buffer_pool_size():
     # calculate innodb buffer pool size
     print_step("Calculating innodb buffer pool size")
     free_memory = os.popen("free -m | awk '/^Mem:/{print $4}'").read()
-    innodb_buffer_pool_size = int(int(free_memory) * 0.6)
+    innodb_buffer_pool_size = int(int(free_memory) * 0.685)
     print(f"innodb_buffer_pool_size: {innodb_buffer_pool_size}M")
     # convert value to whole number
     return innodb_buffer_pool_size
