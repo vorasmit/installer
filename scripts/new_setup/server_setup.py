@@ -327,8 +327,9 @@ def setup_site(site_name, mariadb_root_password, admin_password, apps, dns_multi
 #######################################################################
 
 
-def setup_production(username):
+def setup_production(username, bench_name):
     print_step("Setting up production")
+    os.chdir(f"/home/{username}/{bench_name}")
     os.system(f"sudo bench setup production --yes {username}")
     supervisorctl_permissions(username)
     os.system("sudo systemctl restart supervisor")
@@ -360,7 +361,7 @@ def generate_ssl_certificate(site_name, ssl_email):
     )
 
 
-def add_ssl_to_site(site_name):
+def add_ssl_to_site(site_name, username, bench_name):
     print_step("Adding SSL to site")
     if not os.path.exists("/etc/letsencrypt/live/"):
         print("SSL certificate not found")
@@ -368,6 +369,7 @@ def add_ssl_to_site(site_name):
     fullchain = f"/etc/letsencrypt/live/{site_name}/fullchain.pem"
     privkey = f"/etc/letsencrypt/live/{site_name}/privkey.pem"
 
+    os.chdir(f"/home/{username}/{bench_name}")
     os.system(f"bench set-config ssl_certificate {fullchain}")
     os.system(f"bench set-config ssl_certificate_key {privkey}")
     os.system(f"sudo systemctl restart nginx")
