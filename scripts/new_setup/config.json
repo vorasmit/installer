@@ -34,5 +34,6 @@
     "authorized_keys": {
         "smit": "ssh_key",
         "lakshit": "lakshit_keys"
-    }
+    },
+    "ssl_email": "test@gmail.com"
 }

@@ -325,6 +325,37 @@ def setup_site(site_name, mariadb_root_password, admin_password, apps, dns_multi
     os.system(f"bench set-config dns_multitenant {dns_multitenant}")
 
 
+#######################################################################
+# Setup production ####################################################
+#######################################################################
+
+
+def install_certbot():
+    print_step("Installing certbot")
+    os.system("sudo apt install snapd")
+    os.system("sudo snap install --classic certbot")
+
+
+def generate_ssl_certificate(site_name, ssl_email):
+    print_step("Generating SSL")
+    os.system(
+        f"sudo certbot --nginx -d {site_name} -d www.{site_name} --non-interactive --agree-tos --email {ssl_email}"
+    )
+
+
+def add_ssl_to_site(site_name):
+    print_step("Adding SSL to site")
+    if not os.path.exists("/etc/letsencrypt/live/"):
+        print("SSL certificate not found")
+        return
+    fullchain = f"/etc/letsencrypt/live/{site_name}/fullchain.pem"
+    privkey = f"/etc/letsencrypt/live/{site_name}/privkey.pem"
+
+    os.system(f"bench set-config ssl_certificate {fullchain}")
+    os.system(f"bench set-config ssl_certificate_key {privkey}")
+    os.system(f"sudo systemctl restart nginx")
+
+
 ######################################################################
 
 
