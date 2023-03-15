@@ -42,8 +42,8 @@ if __name__ == "__main__":
             "Install Bench": install_bench,
             "Initialize Bench with Apps": intialize_bench_with_apps,
             "Create Site with App": create_site_with_app,
-            "Setup SSL": setup_ssl,
             "Setup Production": setup_production_server,
+            "Setup SSL": setup_ssl,
         }
 
         for key, value in enumerate(task_list.items()):

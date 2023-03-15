@@ -486,7 +486,7 @@ def create_site_with_app():
     )
 
 
-def setup_production_server(username, bench_name):
+def setup_production_server():
     os.chdir(f"/home/{username}/{bench_name}")
     setup_production(username)
 
