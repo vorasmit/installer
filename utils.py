@@ -309,11 +309,9 @@ def supervisorctl_permissions(username):
 
     # add these lines under [unix_http_server] in /etc/supervisor/supervisord.conf
     filepath = "/etc/supervisor/supervisord.conf"
-    data = f"""
-    chmod=0770\n
-    chown={username}:{username}
-    """
-    os.system(f"sudo sed -i '6i {data}' {filepath}")
+
+    os.system(f"""sudo sed -i '6i chmod=0760' {filepath}""")
+    os.system(f"""sudo sed -i '7i chown={username}:{username}' {filepath}""")
 
 
 def install_certbot():
@@ -340,6 +338,11 @@ def add_ssl_to_site(site_name):
     os.system(f"bench set-config ssl_certificate {fullchain}")
     os.system(f"bench set-config ssl_certificate_key {privkey}")
     os.system(f"sudo systemctl restart nginx")
+
+
+def setup_supervisor():
+    print_step("Setting up supervisor")
+    os.system("sudo bench setup supervisor")
 
 
 #######################################################################
