@@ -199,7 +199,7 @@ def mysql_secure_installation():
     os.system("sudo mysql_secure_installation")
 
 
-def update_mariadb_config():
+def update_mariadb_config(innodb_buffer_pool_size=None):
     """
     Create config files:
     1. /etc/mysql/mariadb.conf.d/erpnext.cnf
@@ -207,11 +207,8 @@ def update_mariadb_config():
     """
     print_step("Updating mariadb config")
 
-    # move erpnext.cnf file
-    dir = "/etc/mysql/mariadb.conf.d"
-    filename = "erpnext.cnf"
-    os.system(f"sudo mkdir -p {dir}")
-    os.system(f"sudo cp erpnext.cnf {os.path.join(dir, filename)}")
+    # update erpnext.cnf
+    create_erpnect_cnf(innodb_buffer_pool_size)
 
     # update override.conf
     dir = "/etc/systemd/system/mariadb.service.d"
@@ -374,6 +371,101 @@ def add_ssl_to_site(site_name):
     os.system(f"bench set-config ssl_certificate {fullchain}")
     os.system(f"bench set-config ssl_certificate_key {privkey}")
     os.system(f"sudo systemctl restart nginx")
+
+
+#######################################################################
+# erpnext.cnf############################################################
+#######################################################################
+
+
+def create_erpnect_cnf(innodb_buffer_pool_size=None):
+    # create erpnext.cnf file
+    print_step("Creating erpnext.cnf file")
+    # create file
+    dir = "/etc/mysql/mariadb.conf.d"
+    filename = "erpnext.cnf"
+    os.system(f"sudo mkdir -p {dir}")
+    os.system(f"sudo touch {dir}/{filename}")
+    file_path = f"{dir}/{filename}"
+    # calculate innodb_buffer_pool_size
+    if innodb_buffer_pool_size is None or innodb_buffer_pool_size == 0:
+        innodb_buffer_pool_size = calculate_innodb_buffer_pool_size()
+    data = f"""
+    [mysqld]
+
+    # GENERAL #
+    user                           = mysql
+    default-storage-engine         = InnoDB
+    # socket                         = /var/lib/mysql/mysql.sock
+    # pid-file                       = /var/lib/mysql/mysql.pid
+
+    # MyISAM #
+    key-buffer-size                = 32M
+    myisam-recover                 = FORCE,BACKUP
+
+    # SAFETY #
+    max-allowed-packet             = 256M
+    max-connect-errors             = 1000000
+    innodb                         = FORCE
+
+    # DATA STORAGE #
+    datadir                        = /var/lib/mysql/
+
+    # BINARY LOGGING #
+    log-bin                        = /var/lib/mysql/mysql-bin
+    expire-logs-days               = 14
+    sync-binlog                    = 1
+
+    # REPLICATION #
+    server-id                      = 1
+
+    # CACHES AND LIMITS #
+    tmp-table-size                 = 32M
+    max-heap-table-size            = 32M
+    query-cache-type               = 0
+    query-cache-size               = 0
+    max-connections                = 500
+    thread-cache-size              = 50
+    open-files-limit               = 65535
+    table-definition-cache         = 4096
+    table-open-cache               = 10240
+
+    # INNODB #
+    innodb-flush-method            = O_DIRECT
+    innodb-log-files-in-group      = 2
+    innodb-log-file-size           = 512M
+    innodb-flush-log-at-trx-commit = 1
+    innodb-file-per-table          = 1
+    innodb-buffer-pool-size        = {innodb_buffer_pool_size}M
+    innodb-file-format             = barracuda
+    innodb-large-prefix            = 1
+    collation-server               = utf8mb4_unicode_ci
+    character-set-server           = utf8mb4
+    character-set-client-handshake = FALSE
+    max_allowed_packet             = 256M
+
+    # LOGGING #
+    log-error                      = /var/lib/mysql/mysql-error.log
+    log-queries-not-using-indexes  = 0
+    slow-query-log                 = 1
+    slow-query-log-file            = /var/lib/mysql/mysql-slow.log
+
+    [mysql]
+    default-character-set = utf8mb4
+
+    [mysqldump]
+    max_allowed_packet=256M
+    """
+    update_config(data, file_path)
+
+
+def calculate_innodb_buffer_pool_size():
+    # calculate innodb buffer pool size
+    print_step("Calculating innodb buffer pool size")
+    free_memory = os.popen("free -m | awk '/^Mem:/{print $4}'").read()
+    innodb_buffer_pool_size = int(free_memory * 0.6)
+    # convert value to whole number
+    return innodb_buffer_pool_size
 
 
 ######################################################################

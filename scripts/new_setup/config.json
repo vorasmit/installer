@@ -5,6 +5,7 @@
     "admin_password": "admin",
     "mariadb_root_password": "root",
     "swap_size": "2",
+    "innodb_buffer_pool_size": "0",
     "dns_multitenant": "on",
     "ssh_port": 22,
     "dependencies": {
