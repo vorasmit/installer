@@ -330,6 +330,26 @@ def setup_site(site_name, mariadb_root_password, admin_password, apps, dns_multi
 #######################################################################
 
 
+def setup_production(username):
+    print_step("Setting up production")
+    os.system(f"sudo bench setup production --yes {username}")
+    supervisorctl_permissions(username)
+    os.system("sudo systemctl restart supervisor")
+
+
+def supervisorctl_permissions(username):
+    # add www-data to sudoers
+    os.system(f"sudo usermod -a -G {username} www-data")
+
+    # add these lines under [unix_http_server] in /etc/supervisor/supervisord.conf
+    filepath = "/etc/supervisor/supervisord.conf"
+    data = f"""
+    chmod=0770\n
+    chown={username}:{username}
+    """
+    os.system(f"sudo sed -i '6i {data}' {filepath}")
+
+
 def install_certbot():
     print_step("Installing certbot")
     os.system("sudo apt install snapd")
