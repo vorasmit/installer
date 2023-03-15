@@ -1,38 +1,4 @@
 #!/usr/bin/env python
-
-"""
-This file will be executed on the server after the server is created.
-
-Requirements:
-=============
-1. Python 3.6 or above
-2. Git
-3. Tested on Ubuntu 22.04
-
-Steps for Running This Script:
-==============================
-1. Create a new user on the server (make sure its same as the username in config.json)
-2. Add the user to sudoers
-3. Login as the new user
-4. Install git
-5. Clone this repo
-6. Go to the repo directory
-7. Run this script after updating the config.json file
-
-eg for a new user named `frappe`
-```sh
-sudo adduser frappe
-sudo usermod -aG sudo frappe
-su - frappe
-
-sudo apt-get update && sudo apt-get install git -y
-git clone https://github.com/vorasmit/installer.git
-cd installer/scripts/new_setup
-python3 server_script.py
-```
-
-"""
-
 import os
 import json
 
@@ -181,7 +147,7 @@ def install_python(version):
     )
 
 
-def install_mariadb(version):
+def install_mariadb(version, innodb_buffer_pool_size=None):
     print_step("Installing mariadb " + version)
     os.system("wget https://downloads.mariadb.com/MariaDB/mariadb_repo_setup")
     os.system("chmod +x mariadb_repo_setup")
@@ -192,7 +158,7 @@ def install_mariadb(version):
     os.system("rm mariadb_repo_setup")
 
     mysql_secure_installation()
-    update_mariadb_config()
+    update_mariadb_config(innodb_buffer_pool_size)
 
 
 def mysql_secure_installation():
@@ -472,46 +438,58 @@ def calculate_innodb_buffer_pool_size():
 # Tasks###############################################################
 ######################################################################
 
+config = read_server_script_json()
+username = config["username"]
+bench_name = config["bench_name"]
 
-def update_server_config(username, keys, ssh_keys):
+
+def update_server_config():
     print_step("Updating server config")
     update_and_upgrade_apt()
-    add_authorized_keys(username, keys)
-    update_ssh_config(ssh_keys)
+    add_authorized_keys(username, config["authorized_keys"])
+    update_ssh_config(config.get("ssh_port"))
 
 
-def update_system_for_mariadb(swap_size):
+def update_system_for_mariadb():
     print_step("Updating system for mariadb")
     update_sysctl_config()
     set_io_scheduler_to_none()
-    create_swap_partition(swap_size)
+    create_swap_partition(config["swap_size"])
 
 
-def install_bench(dependencies):
+def install_bench():
     print_step("Installing bench")
-    install_dependencies(dependencies)
+    install_dependencies()
     install_frappe_bench()
 
 
-def intialize_bench_with_apps(username, version, apps, bench_name):
+def intialize_bench_with_apps():
     print_step("Intializing bench with apps")
-    intialize_frappe_bench(username, version, apps, bench_name)
+    intialize_frappe_bench(
+        username, config["dependencies"]["python"], config["apps"], config["bench_name"]
+    )
 
 
-def create_site_with_app(
-    site_name,
-    mariadb_root_password,
-    admin_password,
-    apps,
-    dns_multitenant,
-    username,
-    bench_name,
-):
+def create_site_with_app():
     print_step("Creating site with app")
     os.chdir(f"/home/{username}/{bench_name}")
-    setup_site(site_name, mariadb_root_password, admin_password, apps, dns_multitenant)
+    setup_site(
+        config["site_name"],
+        config["mariadb_root_password"],
+        config["admin_password"],
+        config["apps"],
+        config["dns_multitenant"],
+    )
 
 
 def setup_production_server(username, bench_name):
     os.chdir(f"/home/{username}/{bench_name}")
     setup_production(username)
+
+
+def setup_ssl():
+    print_step("Generate SSL")
+    install_certbot()
+    generate_ssl_certificate(config["site_name"], config["ssl_email"])
+    os.chdir(f"/home/{username}/{bench_name}")
+    add_ssl_to_site(config["site_name"])
