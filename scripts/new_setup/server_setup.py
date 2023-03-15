@@ -118,15 +118,21 @@ def update_sysctl_config():
     update_config("vm.vfs_cache_pressure=50", filename)
 
 
-def set_io_scheduler_to_none():
+def set_io_scheduler_to_none(device_name=None):
     """
     Set IO scheduler to none for better mariadb performance
     Reference: https://mariadb.com/kb/en/configuring-linux-for-mariadb/
     """
-
-    # TODO: harddisk drive name is hardcoded
-    # TODO: replace existing scheduler with none. This will append.
-    os.system("echo none | sudo tee /sys/block/sda/queue/scheduler")
+    if not device_name:
+        # show all devices
+        all_devices = os.listdir("/sys/block")
+        print(all_devices)
+        while True:
+            device_name = input("Enter device name (e.g. sda): ")
+            if device_name in all_devices:
+                break
+            print("Invalid device name. Please try again.")
+    os.system(f"echo none | sudo tee /sys/block/{device_name}/queue/scheduler")
 
 
 # def create_swap_partition():
